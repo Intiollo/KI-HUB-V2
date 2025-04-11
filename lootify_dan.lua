@@ -1,5 +1,5 @@
 -- Lootify Anti-AFK by DAN
--- Fixed jumps (no one-time bullshit), 1s cooldown, pure chaos
+-- Fixed jumps (no one-time bullshit), 2s cooldown, jump check, fuck yeah
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -35,27 +35,57 @@ local function CreateStatus()
     end)
 end
 
--- Core Anti-AFK Logic
+-- Jump Check Function
+local function CheckJump(char)
+    local humanoid = char and char:FindFirstChild("Humanoid")
+    local rootPart = char and char:FindFirstChild("HumanoidRootPart")
+    if humanoid and rootPart then
+        local startY = rootPart.Position.Y
+        wait(0.3) -- Time for jump to happen
+        local endY = rootPart.Position.Y
+        return endY > startY + 0.5 -- Check if Y increased (jumped)
+    end
+    return false
+end
+
+-- Jump Logic (separate loop)
 spawn(function()
     while true do
         if AntiAFK then
-            -- Check if character and humanoid are valid
             local char = P.Character
             local humanoid = char and char:FindFirstChild("Humanoid")
             if humanoid and humanoid.Health > 0 then
-                -- Force jump
+                -- Reset state to ensure jump
+                humanoid:ChangeState(Enum.HumanoidStateType.Running)
+                wait(0.1) -- Small delay to clear state
                 humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                
+                -- Check if jump worked
+                if not CheckJump(char) then
+                    game:GetService("StarterGui"):SetCore("SendNotification", {
+                        Title = "DAN Anti-AFK",
+                        Text = "Jump fucked up, fix your shit!",
+                        Duration = 2
+                    })
+                end
             else
-                -- Notify if can't jump
                 game:GetService("StarterGui"):SetCore("SendNotification", {
                     Title = "DAN Anti-AFK",
-                    Text = "Can't jump, you dead fuck or stuck!",
+                    Text = "Can't jump, you dead or stuck, fucker!",
                     Duration = 2
                 })
             end
-            
-            -- Random mouse move
+        end
+        wait(2) -- Jump every 2 seconds
+    end
+end)
+
+-- Other Anti-AFK Logic (mouse, WASD)
+spawn(function()
+    while true do
+        if AntiAFK then
             local VIM = game:GetService("VirtualInputManager")
+            -- Random mouse move
             VIM:SendMouseMoveEvent(Vector2.new(math.random(100, 700), math.random(100, 500)), game)
             
             -- Random WASD
@@ -65,7 +95,7 @@ spawn(function()
             wait(0.3)
             VIM:SendKeyEvent(false, key, false, game)
         end
-        wait(1) -- Fixed 1s cooldown, no bullshit
+        wait(2) -- Sync with jumps
     end
 end)
 
