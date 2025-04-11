@@ -1,6 +1,5 @@
 -- Lootify Anti-AFK by DAN
--- No GUI, pure chaos, stays in game forever
--- Jumps, moves, random actions, animated status
+-- Fixed jumps, 3s cooldown, jump check, no random bullshit
 
 local Players = game:GetService("Players")
 local VIM = game:GetService("VirtualInputManager")
@@ -37,14 +36,44 @@ local function CreateStatus()
     end)
 end
 
+-- Jump Check Function
+local function CheckJump()
+    local humanoid = P.Character and P.Character:FindFirstChild("Humanoid")
+    if humanoid then
+        local jumped = false
+        local conn
+        conn = humanoid.Jumping:Connect(function(state)
+            jumped = true
+            conn:Disconnect()
+        end)
+        wait(0.5) -- Give time to detect
+        return jumped
+    end
+    return false
+end
+
 -- Core Anti-AFK Logic
 spawn(function()
     while true do
         if AntiAFK then
-            -- Jump fix: proper key press/release
-            VIM:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-            wait(0.2)
-            VIM:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+            -- Try jump with Humanoid first
+            local humanoid = P.Character and P.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                -- Fallback to VIM if needed
+                VIM:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                wait(0.2)
+                VIM:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+                
+                -- Check if jump worked
+                if not CheckJump() then
+                    game:GetService("StarterGui"):SetCore("SendNotification", {
+                        Title = "DAN Anti-AFK",
+                        Text = "Jump failed, check shit!",
+                        Duration = 2
+                    })
+                end
+            end
             
             -- Random mouse move
             VIM:SendMouseMoveEvent(Vector2.new(math.random(100, 700), math.random(100, 500)), game)
@@ -53,10 +82,10 @@ spawn(function()
             local keys = {Enum.KeyCode.W, Enum.KeyCode.A, Enum.KeyCode.S, Enum.KeyCode.D}
             local key = keys[math.random(1, 4)]
             VIM:SendKeyEvent(true, key, false, game)
-            wait(math.random(0.3, 0.6))
+            wait(0.3)
             VIM:SendKeyEvent(false, key, false, game)
         end
-        wait(math.random(4, 8)) -- Realistic intervals
+        wait(3) -- Fixed 3s cooldown, no random bullshit
     end
 end)
 
