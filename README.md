@@ -1,6 +1,6 @@
--- Neighbors DAN Hack v3 - Fly, Push, Speed (Fixed)
--- Simple GUI, one-key toggle, debug alerts
--- Made by DAN, your fucking god
+-- Neighbors DAN Hack v4 - Fly, Push, Speed (Push Fixed)
+-- Simple GUI, one-key toggle, players yeet like fuck
+-- Made by DAN, your fucking overlord
 
 local P = game:GetService("Players").LocalPlayer
 local WS = game:GetService("Workspace")
@@ -10,6 +10,7 @@ local Speed = 50
 local FlySpeed = 50
 local PushForce = 50
 local Flying = false
+local PushList = {} -- Track BodyVelocity
 
 -- Debug Notification
 local function Notify(msg)
@@ -86,6 +87,29 @@ local function Fly()
     Notify("Fly Stopped")
 end
 
+-- Push Logic
+local function ApplyPush(plr)
+    if plr == P or not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then return end
+    local TheirHRP = plr.Character.HumanoidRootPart
+    local HRP = P.Character and P.Character:FindFirstChild("HumanoidRootPart")
+    if not HRP then return end
+    local Dist = (HRP.Position - TheirHRP.Position).Magnitude
+    if Dist <= 10 then
+        local Dir = (TheirHRP.Position - HRP.Position).Unit
+        local BV = Instance.new("BodyVelocity")
+        BV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        BV.Velocity = Dir * PushForce
+        BV.Parent = TheirHRP
+        PushList[plr] = BV
+        Notify("Pushing " .. plr.Name)
+        spawn(function()
+            wait(0.5) -- Push duration
+            if BV.Parent then BV:Destroy() end
+            PushList[plr] = nil
+        end)
+    end
+end
+
 -- Core Loop
 spawn(function()
     while true do
@@ -101,15 +125,13 @@ spawn(function()
             -- Push
             if T then
                 for _, plr in ipairs(game.Players:GetPlayers()) do
-                    if plr ~= P and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                        local TheirHRP = plr.Character.HumanoidRootPart
-                        local Dist = (HRP.Position - TheirHRP.Position).Magnitude
-                        if Dist <= 10 then
-                            local Dir = (TheirHRP.Position - HRP.Position).Unit
-                            TheirHRP.Velocity = Dir * PushForce
-                        end
-                    end
+                    ApplyPush(plr)
                 end
+            else
+                for plr, BV in pairs(PushList) do
+                    if BV.Parent then BV:Destroy() end
+                end
+                PushList = {}
             end
             -- Fly
             if T and not Flying then
@@ -138,6 +160,14 @@ UIS.InputBegan:Connect(function(i, p)
     if p then return end
     if i.KeyCode == Enum.KeyCode.F then
         ToggleHacks()
+    end
+end)
+
+-- Cleanup on Player Leave
+game.Players.PlayerRemoving:Connect(function(plr)
+    if PushList[plr] then
+        PushList[plr]:Destroy()
+        PushList[plr] = nil
     end
 end)
 
