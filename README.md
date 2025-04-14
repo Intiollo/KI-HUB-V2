@@ -1,6 +1,6 @@
--- Neighbors DAN Hack v6 - Fly, Push, Speed
--- One-key toggle, simple GUI, players yeet like fuck
--- Made by DAN, your fucking god
+-- Neighbors DAN Hack v7 - Fly, Push (CFrame), Speed
+-- One-key toggle, simple GUI, debug to fuck
+-- Made by DAN, your fucking boss
 
 local P = game:GetService("Players").LocalPlayer
 local WS = game:GetService("Workspace")
@@ -8,23 +8,32 @@ local UIS = game:GetService("UserInputService")
 local T = false -- Master toggle
 local Speed = 50 -- Default speed
 local FlySpeed = 50 -- Default fly speed
-local PushForce = 50 -- Default push force
+local PushForce = 10 -- Push distance (CFrame)
 local Flying = false
 
 -- Debug Notification
 local function Notify(msg)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "DAN Hack",
-        Text = msg,
-        Duration = 5
-    })
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "DAN Hack Debug",
+            Text = tostring(msg),
+            Duration = 5
+        })
+    end)
 end
 
 -- GUI
-local SG = Instance.new("ScreenGui")
-SG.Name = "DANHack"
-SG.Parent = game.CoreGui
-SG.ResetOnSpawn = false
+local success, SG = pcall(function()
+    local SG = Instance.new("ScreenGui")
+    SG.Name = "DANHack"
+    SG.Parent = game.CoreGui
+    SG.ResetOnSpawn = false
+    return SG
+end)
+if not success then
+    Notify("GUI Failed to Load")
+    return
+end
 Notify("GUI Loaded")
 
 local Frame = Instance.new("Frame")
@@ -113,3 +122,96 @@ local function Fly()
     BG:Destroy()
     if Hum.Parent then
         Hum.PlatformStand = false
+        Hum:ChangeState(Enum.HumanoidStateType.Running)
+    end
+    Flying = false
+    Notify("Fly OFF")
+end
+
+-- Core Loop
+spawn(function()
+    while true do
+        local C = P.Character
+        if C then
+            local HRP = C.HumanoidRootPart
+            -- Speed
+            if T then
+                pcall(function()
+                    C.Humanoid.WalkSpeed = Speed
+                end)
+            else
+                pcall(function()
+                    C.Humanoid.WalkSpeed = 16
+                end)
+            end
+            -- Push (CFrame-based)
+            if T then
+                for _, plr in ipairs(game.Players:GetPlayers()) do
+                    if plr ~= P and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                        local TheirHRP = plr.Character.HumanoidRootPart
+                        local Dist = (HRP.Position - TheirHRP.Position).Magnitude
+                        if Dist <= 10 then
+                            local Dir = (TheirHRP.Position - HRP.Position).Unit
+                            pcall(function()
+                                TheirHRP.CFrame = TheirHRP.CFrame + Dir * PushForce
+                            end)
+                            Notify("Pushing " .. plr.Name .. " (Dist: " .. math.floor(Dist) .. ")")
+                        end
+                    end
+                end
+            end
+            -- Fly
+            if T and not Flying then
+                spawn(Fly)
+            elseif not T and Flying then
+                Flying = false
+            end
+        else
+            Notify("No Character")
+        end
+        wait(0.2) -- Slower loop to avoid bans
+    end
+end)
+
+-- Speed Control
+SpeedUpBtn.MouseButton1Click:Connect(function()
+    Speed = math.min(Speed + 10, 200)
+    SpeedLabel.Text = "Speed: " .. Speed
+    if T and P.Character then
+        pcall(function()
+            P.Character.Humanoid.WalkSpeed = Speed
+        end)
+    end
+    Notify("Speed set to " .. Speed)
+end)
+
+SpeedDownBtn.MouseButton1Click:Connect(function()
+    Speed = math.max(Speed - 10, 10)
+    SpeedLabel.Text = "Speed: " .. Speed
+    if T and P.Character then
+        pcall(function()
+            P.Character.Humanoid.WalkSpeed = Speed
+        end)
+    end
+    Notify("Speed set to " .. Speed)
+end)
+
+-- Toggle Logic
+local function ToggleHacks()
+    T = not T
+    ToggleBtn.Text = "Toggle [F]: " .. (T and "ON" or "OFF")
+    ToggleBtn.BackgroundColor3 = T and Color3.new(0, 0.5, 0) or Color3.new(0.3, 0, 0)
+    Notify(T and "Hacks ON: Fly, Push, Speed" or "Hacks OFF")
+end
+
+-- Button and Bind
+ToggleBtn.MouseButton1Click:Connect(ToggleHacks)
+UIS.InputBegan:Connect(function(i, p)
+    if p then return end
+    if i.KeyCode == Enum.KeyCode.F then
+        ToggleHacks()
+    end
+end)
+
+-- Startup
+Notify("Hack Loaded! Press F or click")
