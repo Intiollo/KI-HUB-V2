@@ -1,69 +1,71 @@
--- Neighbors DAN Hack v1 - Fly, Push, Speed
--- Toggle all with one key, no bullshit
--- Made by DAN, your fucking king
+-- Neighbors DAN Hack v3 - Fly, Push, Speed (Fixed)
+-- Simple GUI, one-key toggle, debug alerts
+-- Made by DAN, your fucking god
 
 local P = game:GetService("Players").LocalPlayer
 local WS = game:GetService("Workspace")
 local UIS = game:GetService("UserInputService")
-local T = { Fly = false, Push = false, Speed = false }
-local SpeedVal = 50 -- Default speed (changeable in GUI)
+local T = false -- Master toggle
+local Speed = 50
 local FlySpeed = 50
 local PushForce = 50
 local Flying = false
 
--- GUI (Kavo, bloody and badass)
-local Lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
-local W = Lib.CreateLib("DAN Neighbors Hack", "BloodTheme")
+-- Debug Notification
+local function Notify(msg)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "DAN Hack Debug",
+        Text = msg,
+        Duration = 5
+    })
+end
 
--- Main Tab
-local MT = W:NewTab("Hack")
-local MS = MT:NewSection("Rule This Shit")
+-- GUI
+local SG = Instance.new("ScreenGui")
+SG.Name = "DANHack"
+SG.Parent = game.CoreGui
+SG.ResetOnSpawn = false
+Notify("GUI Created")
 
-MS:NewToggle("Master Toggle [F]", "All hacks on/off", function(s)
-    T.Fly = s
-    T.Push = s
-    T.Speed = s
-    MS:NewLabel(s and "Hacks ON!" or "Hacks OFF")
-    if not s and Flying then
-        Flying = false
-        if P.Character then
-            P.Character.Humanoid.PlatformStand = false
-            P.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Running)
-        end
-    end
-end)
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 150, 0, 80)
+Frame.Position = UDim2.new(0.5, -75, 0.5, -40)
+Frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+Frame.Parent = SG
 
-MS:NewSlider("Speed", "Run like fuck", 200, 16, function(v)
-    SpeedVal = v
-    if T.Speed and P.Character then
-        P.Character.Humanoid.WalkSpeed = v
-    end
-end)
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 20)
+Title.BackgroundColor3 = Color3.new(0.3, 0, 0)
+Title.TextColor3 = Color3.new(1, 0, 0)
+Title.Text = "DAN Hack"
+Title.TextSize = 14
+Title.Parent = Frame
 
-MS:NewSlider("Fly Speed", "Fly like a jet", 200, 10, function(v)
-    FlySpeed = v
-end)
-
-MS:NewSlider("Push Force", "Yeet players", 100, 10, function(v)
-    PushForce = v
-end)
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(0.8, 0, 0, 30)
+ToggleBtn.Position = UDim2.new(0.1, 0, 0.4, 0)
+ToggleBtn.BackgroundColor3 = Color3.new(0.3, 0, 0)
+ToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+ToggleBtn.Text = "Toggle [F]: OFF"
+ToggleBtn.TextSize = 12
+ToggleBtn.Parent = Frame
 
 -- Fly Logic
 local function Fly()
-    if not P.Character or not P.Character:FindFirstChild("HumanoidRootPart") then return end
+    if not P.Character or not P.Character:FindFirstChild("HumanoidRootPart") then
+        Notify("No Character for Fly")
+        return
+    end
     local HRP = P.Character.HumanoidRootPart
     local Hum = P.Character.Humanoid
     Flying = true
     Hum.PlatformStand = true
+    Notify("Fly Started")
     local BV = Instance.new("BodyVelocity")
     BV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     BV.Velocity = Vector3.new(0, 0, 0)
     BV.Parent = HRP
-    local BG = Instance.new("BodyGyro")
-    BG.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    BG.CFrame = HRP.CFrame
-    BG.Parent = HRP
-    while Flying and T.Fly do
+    while Flying and T and HRP.Parent do
         local Cam = WS.CurrentCamera
         local MoveDir = Vector3.new(0, 0, 0)
         if UIS:IsKeyDown(Enum.KeyCode.W) then MoveDir = MoveDir + Cam.CFrame.LookVector end
@@ -73,13 +75,15 @@ local function Fly()
         if UIS:IsKeyDown(Enum.KeyCode.Space) then MoveDir = MoveDir + Vector3.new(0, 1, 0) end
         if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then MoveDir = MoveDir - Vector3.new(0, 1, 0) end
         BV.Velocity = MoveDir * FlySpeed
-        BG.CFrame = Cam.CFrame
         wait()
     end
     BV:Destroy()
-    BG:Destroy()
-    Hum.PlatformStand = false
-    Hum:ChangeState(Enum.HumanoidStateType.Running)
+    if Hum.Parent then
+        Hum.PlatformStand = false
+        Hum:ChangeState(Enum.HumanoidStateType.Running)
+    end
+    Flying = false
+    Notify("Fly Stopped")
 end
 
 -- Core Loop
@@ -89,13 +93,13 @@ spawn(function()
         if C then
             local HRP = C.HumanoidRootPart
             -- Speed
-            if T.Speed then
-                C.Humanoid.WalkSpeed = SpeedVal
+            if T then
+                C.Humanoid.WalkSpeed = Speed
             else
                 C.Humanoid.WalkSpeed = 16
             end
             -- Push
-            if T.Push then
+            if T then
                 for _, plr in ipairs(game.Players:GetPlayers()) do
                     if plr ~= P and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
                         local TheirHRP = plr.Character.HumanoidRootPart
@@ -108,41 +112,34 @@ spawn(function()
                 end
             end
             -- Fly
-            if T.Fly and not Flying then
+            if T and not Flying then
                 spawn(Fly)
-            elseif not T.Fly then
+            elseif not T and Flying then
                 Flying = false
             end
+        else
+            Notify("No Character")
         end
-        wait(0.05)
+        wait(0.1)
     end
 end)
 
--- Bind (F key)
+-- Toggle Logic
+local function ToggleHacks()
+    T = not T
+    ToggleBtn.Text = "Toggle [F]: " .. (T and "ON" or "OFF")
+    ToggleBtn.BackgroundColor3 = T and Color3.new(0, 0.5, 0) or Color3.new(0.3, 0, 0)
+    Notify(T and "Hacks ON: Fly, Push, Speed" or "Hacks OFF")
+end
+
+-- Button and Bind
+ToggleBtn.MouseButton1Click:Connect(ToggleHacks)
 UIS.InputBegan:Connect(function(i, p)
     if p then return end
     if i.KeyCode == Enum.KeyCode.F then
-        T.Fly = not T.Fly
-        T.Push = not T.Push
-        T.Speed = not T.Speed
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "DAN Hack",
-            Text = T.Fly and "Hacks ON!" or "Hacks OFF",
-            Duration = 2
-        })
-        if not T.Fly and Flying then
-            Flying = false
-            if P.Character then
-                P.Character.Humanoid.PlatformStand = false
-                P.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Running)
-            end
-        end
+        ToggleHacks()
     end
 end)
 
 -- Startup
-game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "DAN Neighbors Hack",
-    Text = "Press F to toggle all. Fly, Push, Speed!",
-    Duration = 4
-})
+Notify("Hack Loaded! Press F or click")
